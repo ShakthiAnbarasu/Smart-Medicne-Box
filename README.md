@@ -1,103 +1,319 @@
 # Smart-Medicne-Box
-#include<LiquidCrystal.h>
-LiquidCrystal lcd(2,3,4,5,6,7);
+#include <Wire.h>
+#include <LiquidCrystal.h>
+#include "RTClib.h"
 
-#define vibrate_sense 9
+DateTime now;
 
-char str[70];
+char daysOfTheWeek[7][12] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
 
-char *test="$GPGGA";
-char logitude[10];
+RTC_DS3231 rtc;
 
-char latitude[10];
+LiquidCrystal lcd(7, 6, 5, 4, 3, 2); // (rs, e, d4, d5, d6, d7)
 
-int i,j,k;
+int button1=8;
+int button2=9;
+int button3=10;
+int button4=A0;
 
 
-int temp;
+int buzz_led=13;
 
-//int Ctrl+z=26;    //for sending msg
-int led=13;
+int buttonVal1,buttonVal2,buttonVal3,buttonVal4;
 
-void setup()
+int buzz8amHH = 8;          //    HH - hours         ##Set these for reminder 
+time in 24hr Format
+int buzz8amMM = 00;          //    MM - Minute
+
+int buzz8amSS = 30;          //    SS - Seconds
+
+int buzz2pmHH = 14;          //    HH - hours
+
+int buzz2pmMM = 00;          //    MM - Minute
+int buzz2pmSS = 00;          //    SS - Seconds
+
+int buzz8pmHH = 20;          //    HH - hours
+
+int buzz8pmMM = 00;          //    MM - Minute
+int buzz8pmSS = 00;          //    SS - Seconds
+void firstScreen(void);
+
+void showDate(void);
+void showTime(void);
+void showDay(void);
+void secondScreen(void);
+void at8am(void);
+
+void at8pm(void);
+void at2pm(void);
+
+void setup ()
+
 {
 
-lcd.begin(16,2);
-Serial.begin(4800);
-pinMode(vibrate_sense,               INPUT);
-pinMode(led, OUTPUT);
-lcd.setCursor(0,0);
-lcd.print("GPS Besed Vehicle ");
-lcd.setCursor(0,1);
-lcd.print("Tracking System");
-delay(3000);
-}
 
-void loop()
-{
-if (digitalRead(vibrate_sense)==0)
-{
-for(i=18;i<27;i++)          //extract latitude from string
-{
-latitude[j]=str[i];
-j++;
-}
-
-for(i=30;i<40;i++)          //extract longitude from string
-{
-logitude[k]=str[i];
-k++;
-}
-
-lcd.setCursor(0,0);        //display latitude and longitude on 16X2 lcd display
-lcd.print("Lat(N)");
-
-lcd.print(latitude);
-lcd.setCursor(0,1);
-lcd.print("Lon(E)");
-
-
-lcd.print(logitude);
-delay(100);
 Serial.begin(9600);
+pinMode(button1,INPUT);
+pinMode(button2,INPUT);
+pinMode(button3,INPUT);
+pinMode(button4,INPUT);
+pinMode(buzz_led,OUTPUT);
+digitalWrite(button1,HIGH);
+digitalWrite(button2,HIGH);
+digitalWrite(button3,HIGH);
+lcd.begin(16,2);
 
-Serial.println("AT+CMGF=1");    //select text mode
-delay(10);
+//delay(2000);
+if (! rtc.begin())
 
-Serial.println("AT+CMGS=\"9610126059\"");  // enter receipent number
-Serial.println("Vehicle Accident Happend at Place:");
-Serial.print("Latitude(N): ");             //enter latitude in msg
-Serial.println(latitude);                  //enter latitude value in msg
-Serial.print("Longitude(E): ");            //enter Longitude in Msg
-Serial.println(logitude);                  //enter longitude value in msg
-Serial.print("Help Please");
-Serial.write(26);                      //send msg  Ctrl+z=26
-temp=0;
-i=0;
-j=0;
-k=0;
-delay(20000);                        // next reading within 20 seconds
-Serial.begin(4800);
-}
-}
-void serialEvent()
 {
-while (Serial.available())            //Serial incomming data from GPS
-{
-char inChar = (char)Serial.read();
-str[i]= inChar;                    //store incomming data from GPS to temparary 
-string str[]
-i++;
-if (i < 7)
-{
-if(str[i-1] != test[i-1])         //check for right string
-{
-i=0;
+
+Serial.println("Couldn't find RTC Module");
+while (1);
+
 }
-}
-if(i >=60)
+
+if (rtc.lostPower())
+
 {
-break;
+
+Serial.println("RTC lost power, lets set the time!");
+rtc.adjust(DateTime(F(_DATE), F(TIME_)));
+
 }
+
+rtc.adjust(DateTime(F(_DATE), F(TIME_)));
+
 }
+
+void loop ()
+
+
+{
+
+now = rtc.now();
+firstScreen();
+showDate();
+showDay();
+showTime();
+secondScreen();
+
+buttonVal1=digitalRead(button1);
+buttonVal2=digitalRead(button2);
+buttonVal3=digitalRead(button3);
+buttonVal4=digitalRead(button4);
+if(buttonVal1==0)
+
+{
+
+lcd.clear();
+lcd.setCursor(0,0);
+lcd.print("mode  1");
+lcd.setCursor(0,1);
+lcd.print("once a day");
+delay(1000);
+
+at8am();
+
+}
+
+if(buttonVal2==0)
+
+{
+
+lcd.clear();
+lcd.setCursor(0,0);
+lcd.print("mode                               2");
+
+
+lcd.setCursor(0,1);
+lcd.print("twice a day");
+at8am();
+
+at8pm();
+
+}
+
+if(buttonVal3==0)
+
+{
+
+lcd.clear();
+lcd.setCursor(0,0);
+lcd.print("mode  3");
+lcd.setCursor(0,1);
+lcd.print("thrice a day");
+at8am();
+
+at2pm();
+
+at8pm();
+
+}
+
+}
+
+void firstScreen()
+
+{
+
+lcd.clear();
+lcd.setCursor(0,0);
+
+
+lcd.print("  welcome to  ");
+lcd.setCursor(0,1);
+lcd.print("pill reminder");
+delay(2000);
+
+}
+
+void secondScreen()
+
+{
+
+lcd.clear();
+lcd.setCursor(0,0);
+
+lcd.print("enter mode 1,2,3");
+lcd.setCursor(0,1);
+lcd.print("for reminder");
+delay(2000);
+
+}
+
+void showDate()
+
+{
+
+lcd.clear();
+lcd.setCursor(0,0);
+lcd.print(now.day());
+
+lcd.print('/');
+
+lcd.print(now.month());
+
+lcd.print('/');
+
+lcd.print(now.year());
+
+
+}
+
+void showDay()
+
+{
+
+lcd.setCursor(11,0);
+lcd.print(daysOfTheWeek[now.dayOfTheWeek()]);
+
+}
+
+void showTime()
+
+{
+
+lcd.setCursor(0,1);
+lcd.print("Time:");
+
+lcd.print(now.hour());
+
+lcd.print(':');
+lcd.print(now.minute());
+lcd.print(':');
+lcd.print(now.second());
+lcd.print("                 ");
+delay(5000);
+
+}
+
+void startBuzz()
+
+{
+
+if(buttonVal4==1)
+
+{
+
+digitalWrite(buzz_led,HIGH);
+delay(5000);
+
+}
+
+
+if(buttonVal4==0)
+
+{
+
+digitalWrite(buzz_led,LOW);
+delay(5000);
+
+}
+
+}
+
+void at8am() {                      // function to start buzzing at 8am
+DateTime now = rtc.now();
+
+if (int(now.hour()) >= buzz8amHH) {
+
+if (int(now.minute()) >= buzz8amMM) {
+if (int(now.second())== buzz8amSS) {
+
+/////////////////////////////////////////////////////
+
+startBuzz();
+
+/////////////////////////////////////////////////////
+
+}
+
+}
+
+}
+
+}
+
+void at2pm() {                          // function to start buzzing at 2pm
+DateTime now = rtc.now();
+
+if (int(now.hour()) >= buzz2pmHH) {
+
+if (int(now.minute()) >= buzz2pmMM) {
+if (int(now.second()) > buzz2pmSS) {
+
+
+///////////////////////////////////////////////////
+startBuzz();
+
+//////////////////////////////////////////////////
+
+}
+
+}
+
+}
+
+}
+
+void at8pm() {                           // function to start buzzing at 8pm
+DateTime now = rtc.now();
+
+if (int(now.hour()) >= buzz8pmHH) {
+
+if (int(now.minute()) >= buzz8pmMM) {
+if (int(now.second()) > buzz8pmSS) {
+
+/////////////////////////////////////////////////////
+startBuzz();
+
+/////////////////////////////////////////////////////
+
+}
+
+}
+
+}
+
 }
